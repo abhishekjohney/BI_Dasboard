@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Intelligence Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/index.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            text-align: center;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-card h3 {
+            color: #4a5568;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            color: #718096;
+            font-size: 0.85rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .data-table th {
+            background-color: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .data-table tr:hover {
+            background-color: #f7fafc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .positive {
+            color: #38a169;
+        }
+
+        .negative {
+            color: #e53e3e;
+        }
+
+        .filters {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            margin-bottom: 2rem;
+        }
+
+        .filter-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-item label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .filter-item select,
+        .filter-item input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s ease;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .metric-value {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Marketing Intelligence Dashboard</h1>
+        <p>Real-time insights for data-driven marketing decisions</p>
+    </div>
+
+    <div class="container">
+        <div class="loading" id="loading">Loading dashboard data...</div>
+        
+        <div id="dashboard-content" style="display: none;">
+            <!-- Summary Metrics -->
+            <div class="dashboard-grid" id="summary-metrics">
+                <!-- Metrics will be populated by JavaScript -->
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <h3 style="margin-bottom: 1rem; color: #4a5568;">Dashboard Filters</h3>
+                <div class="filter-group">
+                    <div class="filter-item">
+                        <label for="date-range">Date Range</label>
+                        <select id="date-range">
+                            <option value="all">All Time</option>
+                            <option value="30">Last 30 Days</option>
+                            <option value="14">Last 14 Days</option>
+                            <option value="7">Last 7 Days</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label for="platform-filter">Platform</label>
+                        <select id="platform-filter">
+                            <option value="all">All Platforms</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Google">Google</option>
+                            <option value="TikTok">TikTok</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <button class="btn" onclick="applyFilters()">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Performance Chart -->
+            <div class="chart-container">
+                <div class="chart-title">Daily Performance Trends</div>
+                <div class="chart-wrapper">
+                    <canvas id="daily-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Platform Performance Chart -->
+            <div class="chart-container">
+                <div class="chart-title">Platform Performance Comparison</div>
+                <div class="chart-wrapper">
+                    <canvas id="platform-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Campaign Performance Table -->
+            <div class="table-container">
+                <h3 class="chart-title">Top Campaign Performance</h3>
+                <table class="data-table" id="campaign-table">
+                    <thead>
+                        <tr>
+                            <th>Campaign</th>
+                            <th>Platform</th>
+                            <th>Spend</th>
+                            <th>Revenue</th>
+                            <th>ROAS</th>
+                            <th>Clicks</th>
+                            <th>CTR</th>
+                            <th>CPC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Campaign data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Platform Summary Table -->
+            <div class="table-container">
+                <h3 class="chart-title">Platform Summary</h3>
+                <table class="data-table" id="platform-table">
+                    <thead>
+                        <tr>
+                            <th>Platform</th>
+                            <th>Total Spend</th>
+                            <th>Total Revenue</th>
+                            <th>ROAS</th>
+                            <th>Impressions</th>
+                            <th>Clicks</th>
+                            <th>CTR</th>
+                            <th>CPC</th>
+                            <th>Campaigns</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Platform data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let dashboardData = null;
+        let dailyChart = null;
+        let platformChart = null;
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('./dashboard_data.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                dashboardData = await response.json();
+                renderDashboard();
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                document.getElementById('loading').innerHTML = 
+                    '<div class="error">Error loading dashboard data. Please ensure dashboard_data.json exists.</div>';
+            }
+        }
+
+        // Render the complete dashboard
+        function renderDashboard() {
+            if (!dashboardData) return;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+
+            renderSummaryMetrics();
+            renderDailyChart();
+            renderPlatformChart();
+            renderCampaignTable();
+            renderPlatformTable();
+        }
+
+        // Render summary metrics cards
+        function renderSummaryMetrics() {
+            const summary = dashboardData.summary;
+            const metrics = [
+                {
+                    title: 'Total Marketing Spend',
+                    value: formatCurrency(summary.total_spend),
+                    label: 'Across all platforms'
+                },
+                {
+                    title: 'Attributed Revenue',
+                    value: formatCurrency(summary.total_attributed_revenue),
+                    label: 'From marketing campaigns'
+                },
+                {
+                    title: 'Overall ROAS',
+                    value: summary.overall_roas.toFixed(2) + 'x',
+                    label: 'Return on ad spend',
+                    class: summary.overall_roas >= 1 ? 'positive' : 'negative'
+                },
+                {
+                    title: 'Total Orders',
+                    value: formatNumber(summary.total_orders),
+                    label: 'During tracking period'
+                },
+                {
+                    title: 'New Customers',
+                    value: formatNumber(summary.total_new_customers),
+                    label: 'Acquired customers'
+                },
+                {
+                    title: 'Customer Acquisition Cost',
+                    value: formatCurrency(summary.cpa),
+                    label: 'Average CPA'
+                },
+                {
+                    title: 'Marketing Attribution',
+                    value: summary.attribution_rate + '%',
+                    label: 'Of total revenue'
+                },
+                {
+                    title: 'Average CPC',
+                    value: formatCurrency(summary.avg_cpc),
+                    label: 'Cost per click'
+                }
+            ];
+
+            const container = document.getElementById('summary-metrics');
+            container.innerHTML = metrics.map(metric => `
+                <div class="metric-card">
+                    <h3>${metric.title}</h3>
+                    <div class="metric-value ${metric.class || ''}">${metric.value}</div>
+                    <div class="metric-label">${metric.label}</div>
+                </div>
+            `).join('');
+        }
+
+        // Render daily performance chart
+        function renderDailyChart() {
+            const ctx = document.getElementById('daily-chart').getContext('2d');
+            const dailyData = dashboardData.daily_metrics;
+
+            if (dailyChart) {
+                dailyChart.destroy();
+            }
+
+            const dates = dailyData.map(d => d.date);
+            const spend = dailyData.map(d => d.spend);
+            const revenue = dailyData.map(d => d.attributed_revenue);
+            const roas = dailyData.map(d => d.roas);
+
+            dailyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates.map(date => new Date(date).toLocaleDateString()),
+                    datasets: [
+                        {
+                            label: 'Daily Spend',
+                            data: spend,
+                            borderColor: '#e53e3e',
+                            backgroundColor: 'rgba(229, 62, 62, 0.1)',
+                            yAxisID: 'y',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Attributed Revenue',
+                            data: revenue,
+                            borderColor: '#38a169',
+                            backgroundColor: 'rgba(56, 161, 105, 0.1)',
+                            yAxisID: 'y',
+                            tension: 0.1
+                        },
+                        {
+                            label: 'ROAS',
+                            data: roas,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            yAxisID: 'y1',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Amount ($)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'ROAS'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (label.includes('ROAS')) {
+                                            label += context.parsed.y.toFixed(2) + 'x';
+                                        } else {
+                                            label += formatCurrency(context.parsed.y);
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render platform performance chart
+        function renderPlatformChart() {
+            const ctx = document.getElementById('platform-chart').getContext('2d');
+            const platformData = dashboardData.platform_performance;
+
+            if (platformChart) {
+                platformChart.destroy();
+            }
+
+            const platforms = platformData.map(p => p.platform);
+            const spend = platformData.map(p => p.spend);
+            const revenue = platformData.map(p => p.attributed_revenue);
+            const roas = platformData.map(p => p.roas);
+
+            platformChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: platforms,
+                    datasets: [
+                        {
+                            label: 'Spend',
+                            data: spend,
+                            backgroundColor: 'rgba(229, 62, 62, 0.7)',
+                            borderColor: '#e53e3e',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Attributed Revenue',
+                            data: revenue,
+                            backgroundColor: 'rgba(56, 161, 105, 0.7)',
+                            borderColor: '#38a169',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += formatCurrency(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Amount ($)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render campaign performance table
+        function renderCampaignTable() {
+            const campaigns = dashboardData.campaign_performance.slice(0, 10); // Top 10 campaigns
+            const tbody = document.querySelector('#campaign-table tbody');
+            
+            tbody.innerHTML = campaigns.map(campaign => `
+                <tr>
+                    <td>${campaign.campaign}</td>
+                    <td>${campaign.platform}</td>
+                    <td>${formatCurrency(campaign.spend)}</td>
+                    <td>${formatCurrency(campaign.attributed_revenue)}</td>
+                    <td class="${campaign.roas >= 1 ? 'positive' : 'negative'}">${campaign.roas.toFixed(2)}x</td>
+                    <td>${formatNumber(campaign.clicks)}</td>
+                    <td>${campaign.ctr.toFixed(2)}%</td>
+                    <td>${formatCurrency(campaign.cpc)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Render platform summary table
+        function renderPlatformTable() {
+            const platforms = dashboardData.platform_performance;
+            const tbody = document.querySelector('#platform-table tbody');
+            
+            tbody.innerHTML = platforms.map(platform => `
+                <tr>
+                    <td>${platform.platform}</td>
+                    <td>${formatCurrency(platform.spend)}</td>
+                    <td>${formatCurrency(platform.attributed_revenue)}</td>
+                    <td class="${platform.roas >= 1 ? 'positive' : 'negative'}">${platform.roas.toFixed(2)}x</td>
+                    <td>${formatNumber(platform.impressions)}</td>
+                    <td>${formatNumber(platform.clicks)}</td>
+                    <td>${platform.ctr.toFixed(2)}%</td>
+                    <td>${formatCurrency(platform.cpc)}</td>
+                    <td>${platform.campaigns}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Apply filters (placeholder for future functionality)
+        function applyFilters() {
+            const dateRange = document.getElementById('date-range').value;
+            const platform = document.getElementById('platform-filter').value;
+            
+            // This would filter the data and re-render charts
+            console.log('Applying filters:', { dateRange, platform });
+            alert('Filter functionality would be implemented here with more development time');
+        }
+
+        // Utility functions
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('en-US').format(num);
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+    </script>
+</body>
+</html>
